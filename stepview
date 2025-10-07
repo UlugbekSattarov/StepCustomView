@@ -1,0 +1,222 @@
+package uz.express24.common.ui.view.stepview
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.DashPathEffect
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Shader
+import android.os.Build
+import android.text.Layout
+import android.text.Layout.Alignment.ALIGN_NORMAL
+import android.text.StaticLayout
+import android.text.TextPaint
+import android.text.TextUtils
+import android.util.AttributeSet
+import android.view.View
+import androidx.appcompat.content.res.AppCompatResources.getDrawable
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.withTranslation
+import androidx.core.util.lruCache
+import uz.express24.common.ui.R.color.accentGreen
+import uz.express24.common.ui.R.color.yellow06
+import uz.express24.resource.icons.R.drawable.ic_v_checked
+
+class StepView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null
+) : View(context, attrs) {
+    private var clientCircleColor = ResourcesCompat.getColor(resources, accentGreen, context.theme)
+    private val clientTextPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val paintClientCircle = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var paintDashLine = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val paintVendorCircle = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val vendorTextPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val vendorCircleColor = ResourcesCompat.getColor(resources, yellow06, context.theme)
+
+    private val vendorAddressPaint = TextPaint()
+    private var clientAddressPaint = TextPaint()
+    private val bitmapIcon = getDrawable(context, ic_v_checked)?.toBitmap()
+    private val path = Path()
+
+    private val vendorCircleRadius = 6F.toDp()
+    private val clientCircleRadius = 8F.toDp()
+    private val textSize = 16F.toDp()
+
+    private val clientTextY = 54F.toDp()
+    private val textX = 24F.toDp()
+    private val vendorTextY = 0F.toDp()
+
+    private val circleX = 8F.toDp()
+    private val circleY0 = 8F.toDp()
+    private val circleY1 = 64F.toDp()
+
+    private val bitmapX = 4F.toDp()
+    private val bitmapY = 60F.toDp()
+
+    private val lineHatchHeight = 6.5F.toDp()
+    private val lineHatchSpaceHeight = 3.5F.toDp()
+    private val lineWidth = 1.5F.toDp()
+    private val lineStartX = 8F.toDp()
+    private val lineStartY = 12F.toDp()
+    private val lineEndX = 8F.toDp()
+    private val lineEndY = 58F.toDp()
+
+    private val gradientStartX = 0F.toDp()
+    private val gradientStartY = 24F.toDp()
+    private val gradientEndX = 0F.toDp()
+    private val gradientEndY = 56F.toDp()
+
+    private val textPaintWidth = resources.displayMetrics.widthPixels - 90F.toDp().toInt()
+
+    private var clientAddressText: String? = null
+    private var vendorAddressText: String? = null
+
+    init {
+        drawDashLine()
+        drawTextPaints()
+        drawCircles()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawPath(path, paintDashLine)
+        canvas.drawCircle(circleX, circleY0, vendorCircleRadius, paintVendorCircle)
+        canvas.drawCircle(circleX, circleY1, clientCircleRadius, paintClientCircle)
+
+        val icon = bitmapIcon ?: return
+        canvas.drawBitmap(icon, bitmapX, bitmapY, paintVendorCircle)
+
+        val clientAddress = clientAddressText ?: return
+        canvas.drawMultilineText(
+            text = clientAddress,
+            textPaint = clientAddressPaint,
+            width = textPaintWidth,
+            x = textX,
+            y = clientTextY
+        )
+
+        val vendorAddress = vendorAddressText ?: return
+        canvas.drawMultilineText(
+            text = vendorAddress,
+            textPaint = vendorAddressPaint,
+            width = textPaintWidth,
+            x = textX,
+            y = vendorTextY
+        )
+    }
+
+    @Suppress("unused") // waiting for other modules to use
+    fun setAddressInfo(clientAddressText: String?, vendorAddressText: String?) {
+        this.clientAddressText = clientAddressText
+        this.vendorAddressText = vendorAddressText
+
+        if (clientAddressText != null || vendorAddressText != null) {
+            invalidate()
+        }
+    }
+
+    private fun drawTextPaints() {
+        vendorTextPaint.style = Paint.Style.FILL
+        vendorTextPaint.color = Color.BLACK
+        vendorTextPaint.textSize = textSize
+        vendorAddressPaint.color = Color.BLACK
+        vendorAddressPaint.textSize = textSize
+
+        clientTextPaint.style = Paint.Style.FILL
+        clientTextPaint.color = Color.BLACK
+
+        clientAddressPaint.textSize = textSize
+        clientAddressPaint.color = Color.BLACK
+    }
+
+    private fun drawDashLine() {
+        paintDashLine.strokeWidth = lineWidth
+        paintDashLine.style = Paint.Style.STROKE
+        paintDashLine.strokeCap = Paint.Cap.ROUND
+        paintDashLine.shader = LinearGradient(
+            gradientStartX,
+            gradientStartY,
+            gradientEndX,
+            gradientEndY,
+            vendorCircleColor,
+            clientCircleColor,
+            Shader.TileMode.CLAMP
+        )
+        path.moveTo(lineStartX, lineStartY)
+        path.lineTo(lineEndX, lineEndY)
+
+        val intervals = floatArrayOf(lineHatchHeight, lineHatchSpaceHeight)
+        val phase = 0F
+        val dashPathEffect = DashPathEffect(intervals, phase)
+        paintDashLine.pathEffect = dashPathEffect
+    }
+
+    private fun drawCircles() {
+        paintVendorCircle.color = vendorCircleColor
+        paintClientCircle.color = clientCircleColor
+    }
+
+    private fun Float.toDp(): Float {
+        return (this * resources.displayMetrics.density)
+    }
+
+    @Suppress("LongParameterList", "DEPRECATION")
+    // LongParameterList used to to render multiline text with more than 10 args
+    // DEPRECATION used to avoid build fail cause static layout is deprecated
+    private fun Canvas.drawMultilineText(
+        text: CharSequence,
+        textPaint: TextPaint,
+        width: Int,
+        x: Float,
+        y: Float,
+        start: Int = 0,
+        end: Int = text.length,
+        alignment: Layout.Alignment = ALIGN_NORMAL,
+        spacingMult: Float = 1f,
+        spacingAdd: Float = 0f,
+        includePad: Boolean = true,
+        ellipsizedWidth: Int = width,
+        ellipsize: TextUtils.TruncateAt? = null
+    ) {
+        val cacheKey =
+            "$text-$start-$end-$textPaint-$width-$alignment-" +
+                    "$spacingMult-$spacingAdd-$includePad-$ellipsizedWidth-$ellipsize"
+
+        // The public constructor was deprecated in API level 28,
+        // but the builder is only available from API level 23 onwards
+        val staticLayout =
+            StaticLayoutCache[cacheKey] ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                StaticLayout.Builder.obtain(text, start, end, textPaint, width)
+                    .setAlignment(alignment)
+                    .setLineSpacing(spacingAdd, spacingMult)
+                    .setIncludePad(includePad)
+                    .setEllipsizedWidth(ellipsizedWidth)
+                    .setEllipsize(ellipsize)
+                    .build()
+            } else {
+                StaticLayout(
+                    text, start, end, textPaint, width, alignment,
+                    spacingMult, spacingAdd, includePad, ellipsize, ellipsizedWidth
+                ).apply { StaticLayoutCache[cacheKey] = this }
+            }
+        withTranslation(x, y, staticLayout::draw)
+    }
+
+    private object StaticLayoutCache {
+
+        private const val MAX_SIZE = 50 // Arbitrary max number of cached items
+        private val cache = lruCache<String, StaticLayout>(MAX_SIZE)
+
+        operator fun set(key: String, staticLayout: StaticLayout) {
+            cache.put(key, staticLayout)
+        }
+
+        operator fun get(key: String): StaticLayout? {
+            return cache[key]
+        }
+    }
+}
